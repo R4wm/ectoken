@@ -75,9 +75,10 @@ function encrypt_v3(a_key, a_token)
 	local ciphertext, digest = aes256:encrypt(a_token)
 	print("aes256 gcm enc", #ciphertext, hex(ciphertext))
 	print("aes256 gcm dgst", #digest, hex(digest))
+
 	print("MORE ABOUT ciphertext: ")
 	print(type(ciphertext))
-
+	print
 
 	-- -------
 	-- decrypt
