@@ -8,6 +8,7 @@ local format = string.format
 local ipairs = ipairs
 local concat = table.concat
 local aes = require "resty.nettle.aes"
+local base64 = require "resty.nettle.base64"
 -- --------
 -- GLOBALS
 -- --------
@@ -27,8 +28,8 @@ for i = 97, 122 do table.insert(charset, string.char(i)) end
 -- string.random
 -- -------------
 function string.random(length)
-  math.randomseed(os.time())
-
+   math.randomseed(os.time())
+   
   if length > 0 then
     return string.random(length - 1) .. charset[math.random(1, #charset)]
   else
@@ -43,37 +44,6 @@ local function hex(str,spacer)
                 return format("%02X%s", byte(c), spacer or "")
         end))
 end
--- -----
--- SEED
--- -----
-function seed()
-        local yarrow = require "resty.nettle.yarrow"
-        local y = yarrow.new()
-        print("y.sources " ,y.sources)
-        print("y.seeded ", y.seeded)
-        -- print("Doing --> y:seed('testtesttesttesttesttesttesttest')")
-        -- y:seed("testtesttesttesttesttesttesttest")
-        print("Doing --> y:seed(hex(y:random(G_IV_SIZE_BYTES)")
-
-        y:seed("testtesttesttesttesttesttesttest")
-        print("y.seeded --> ", y.seeded)
-
-        print("\nCompare")
-        print("testtesttesttesttesttesttesttest")
-        print(type("testtesttesttest"))
-        print(hex(y:random(16)))
-        print(type(hex(y:random(16))))
-
-        print(hex(y:random(G_IV_SIZE_BYTES)))
-        print(hex(y:random(G_IV_SIZE_BYTES)))
-
-        y:fast_reseed()
-
-        print(hex(y:random(G_IV_SIZE_BYTES)))
-
-        y:slow_reseed()
-        print(hex(y:random(G_IV_SIZE_BYTES)))
-end
 --------------
 -- convert_key
 --------------
@@ -84,39 +54,23 @@ function convert_key(a_key)
 
         hash:update(a_key)
         local dgst = hash:digest()
-        print("From convert_key --> ")
-        print("hmac sha256", #dgst, hex(dgst))
-        print("hmac sha256 (no hex)", dgst)
-        print("End convert_key..")
+
         return hex(dgst)
 end
 -- -------
 -- decrypt
 -- -------
 function decrypt_v3(a_key, a_token)
-   -- -------
-   -- decrypt
-   -- -------
-   print("Decrypt..")
    l_iv = string.sub(a_token, 0, 12)
-   l_cipher = string.sub(a_token, 13, 30)
-   l_ad = string.sub(a_token, 31)
+   l_cipher = string.sub(a_token, 13, 24)
+   l_cipher = base64.decode(l_cipher)
+   l_ad = string.sub(a_token, 25)
    l_key = convert_key(a_key)
-   print("This is iv --> "..l_iv)
-   print("This is l_cipher --> "..l_cipher)
-   print("This is l_ad --> "..l_ad)
-   print("This is l_key ", l_key)
-   print("This is a_token passed in --> "..a_token)
---    print("This is a_key --> "..a_key)
---    l_key = convert_key(a_key)
---    print("This is l_key --> "..l_key)
+   -- decrypt
    local aes256 = aes.new(l_key, "gcm", l_iv, l_ad)
--- local aes256 = aes.new(l_key, "gcm", "771e9aed45a7", a_token)
-   local plaintext, digest = aes256:decrypt(hex(l_cipher))
-   print("aes256 gcm dec", #plaintext, plaintext)
-   print("aes256 gcm dec", #plaintext, hex(plaintext))
-   print("aes256 gcm dgst", #digest, hex(digest))
-   print()
+   local plaintext, digest = aes256:decrypt(l_cipher)
+   
+   return plaintext
 end
 -- ---------
 -- create_iv
@@ -124,7 +78,6 @@ end
 function create_iv()
    local random = require "resty.random"
    local bytes = random.bytes(12)
-   print(bytes)
 end
 ------------
 --encrypt_v3
@@ -134,32 +87,23 @@ function encrypt_v3(a_key, a_token)
    l_key = convert_key(a_key)
    l_iv = "771e9aed45a7" --static for now until random.lua is working
    l_ad = string.random(G_AES_GCM_TAG_SIZE_BYTES)
-   print("THis is l_ad --> "..l_ad)
-
-   print("\nEncypt..")
-   print("This is l_key --> "..l_key)
-   print("This is l_iv --> "..l_iv)
-   print(#l_key)
 
    local aes256, err = aes.new(l_key, "gcm", l_iv, l_ad)
-
+   -- check for error
    if aes256 == nil then
       print("aes256 is nil..")
       print(err)
    end
-   print("Now encrypting --> ", a_token)
+   -- encrypt
    local ciphertext, digest = aes256:encrypt(a_token)
-   print("aes256 gcm enc", #ciphertext, hex(ciphertext))
-   print("aes256 gcm dgst", #digest, hex(digest))
+   ciphertext = base64.encode(ciphertext)
 
-   print("type l_iv --> "..type(l_iv))
-   print("type hex(ciphertext) --> "..type(hex(ciphertext)))
-   return l_iv..hex(ciphertext)..l_ad
-   -- return l_iv..ciphertext..l_ad
+   return l_iv..ciphertext..l_ad
 end
 -- ----
 -- main
 -- ----
-local ciphertext = encrypt_v3("somekey", "sometoken")
+local ciphertext = encrypt_v3("somekey", "thisissomekindacrazytokenyouknow?")
 print("From main, this is ciphertext --> "..ciphertext)
-decrypt_v3("somekey", ciphertext)
+local decrypted = decrypt_v3("somekey", ciphertext)
+print("From main, this is decrypted ciphertext --> "..decrypted)
