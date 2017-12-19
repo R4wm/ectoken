@@ -62,15 +62,24 @@ end
 -- -------
 function decrypt_v3(a_key, a_token)
    l_iv = string.sub(a_token, 0, 12)
-   l_cipher = string.sub(a_token, 13, 24)
+   l_ad = string.sub(a_token, 13, 28)
+   l_cipher = string.sub(a_token, 29)
+
    l_cipher = base64.decode(l_cipher)
-   l_ad = string.sub(a_token, 25)
+   l_ad = string.sub(a_token, 57)
    l_key = convert_key(a_key)
    -- decrypt
    local aes256 = aes.new(l_key, "gcm", l_iv, l_ad)
    local plaintext, digest = aes256:decrypt(l_cipher)
-   
-   return plaintext
+
+   -- VERBOSE INFO
+   print("l_key: "..l_key)
+   print("l_iv: "..l_iv)
+   print("l_ad: "..l_ad)
+   print("digest: "..digest)
+   print("l_ciper: "..l_cipher)
+   print("plaintext: "..plaintext)
+   return plaintext   
 end
 -- ---------
 -- create_iv
@@ -89,6 +98,7 @@ function encrypt_v3(a_key, a_token)
    l_ad = string.random(G_AES_GCM_TAG_SIZE_BYTES)
 
    local aes256, err = aes.new(l_key, "gcm", l_iv, l_ad)
+   
    -- check for error
    if aes256 == nil then
       print("aes256 is nil..")
@@ -97,13 +107,23 @@ function encrypt_v3(a_key, a_token)
    -- encrypt
    local ciphertext, digest = aes256:encrypt(a_token)
    ciphertext = base64.encode(ciphertext)
-
-   return l_iv..ciphertext..l_ad
+   
+   --VERBOSE INFO
+   print("Encrypt AES256-GCM")
+   print("l_key: "..l_key)
+   print("l_iv: "..l_iv)
+   print("l_ad: "..l_ad)
+   print("digest: "..digest)
+   print("ciphertext: "..ciphertext)
+   print("ciphertext len: "..#ciphertext)
+   return l_iv..l_ad..ciphertext
 end
 -- ----
 -- main
 -- ----
-local ciphertext = encrypt_v3("somekey", "thisissomekindacrazytokenyouknow?")
+--testing
+local ciphertext = encrypt_v3("somekey", "somereallycooltokenyouveneverseenbefore.?>?")
 print("From main, this is ciphertext --> "..ciphertext)
 local decrypted = decrypt_v3("somekey", ciphertext)
 print("From main, this is decrypted ciphertext --> "..decrypted)
+-- print("From main, this is decrypted ciphertext --> "..decrypted)
