@@ -9,6 +9,7 @@ local ipairs = ipairs
 local concat = table.concat
 local aes = require "resty.nettle.aes"
 local base64 = require "resty.nettle.base64"
+local os = require "os"
 -- --------
 -- GLOBALS
 -- --------
@@ -17,13 +18,29 @@ G_RAND_SENTINEL_MIN_LEN = 4
 G_RAND_SENTINEL_MAX_LEN = 8
 G_IV_SIZE_BYTES = 12
 G_AES_GCM_TAG_SIZE_BYTES = 16
-
+VERBOSE = false
 local charset = {}
 -- qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890
 for i = 48,  57 do table.insert(charset, string.char(i)) end
 for i = 65,  90 do table.insert(charset, string.char(i)) end
 for i = 97, 122 do table.insert(charset, string.char(i)) end
-
+-- -----
+-- usage
+-- -----
+local function print_usage()
+   usage_str = [[
+optional:
+    -v   verbose
+    -d   decrypt
+required:
+    -t   token
+    -k   key
+ex: 
+    .ectoken.lua -t mytoken -k mysecretkey
+    .ectoken.lua -t MyH4$h5 -k mysecretkey -d -v
+]]
+   print(usage_str)
+end
 -- -------------
 -- string.random
 -- -------------
@@ -61,24 +78,27 @@ end
 -- decrypt
 -- -------
 function decrypt_v3(a_key, a_token)
-   l_iv = string.sub(a_token, 0, 12)
-   l_ad = string.sub(a_token, 13, 28)
-   l_cipher = string.sub(a_token, 29)
-
-   l_cipher = base64.decode(l_cipher)
-   l_ad = string.sub(a_token, 57)
-   l_key = convert_key(a_key)
+   -- parse token
+   local iv = string.sub(a_token, 0, 12)
+   local ad = string.sub(a_token, 13, 28)
+   local cipher = string.sub(a_token, 29)
+   -- decode base64 cipher
+   cipher = base64.decode(cipher)
+   local key = convert_key(a_key)
    -- decrypt
-   local aes256 = aes.new(l_key, "gcm", l_iv, l_ad)
-   local plaintext, digest = aes256:decrypt(l_cipher)
+   local aes256 = aes.new(key, "gcm", iv, ad)
+   local plaintext, digest = aes256:decrypt(cipher)
 
    -- VERBOSE INFO
-   print("l_key: "..l_key)
-   print("l_iv: "..l_iv)
-   print("l_ad: "..l_ad)
-   print("digest: "..digest)
-   print("l_ciper: "..l_cipher)
-   print("plaintext: "..plaintext)
+   if VERBOSE then   
+      print("key: "..key)
+      print("l_iv: "..iv)
+      print("l_ad: "..ad)
+      print("digest: "..digest)
+      print("l_ciper: "..cipher)
+      print("plaintext: "..plaintext)
+   end
+   
    return plaintext   
 end
 -- ---------
@@ -109,21 +129,95 @@ function encrypt_v3(a_key, a_token)
    ciphertext = base64.encode(ciphertext)
    
    --VERBOSE INFO
-   print("Encrypt AES256-GCM")
-   print("l_key: "..l_key)
-   print("l_iv: "..l_iv)
-   print("l_ad: "..l_ad)
-   print("digest: "..digest)
-   print("ciphertext: "..ciphertext)
-   print("ciphertext len: "..#ciphertext)
+   if VERBOSE then
+      print("l_key: "..l_key)
+      print("l_iv: "..l_iv)
+      print("l_ad: "..l_ad)
+      print("digest: "..digest)
+      print("ciphertext: "..ciphertext)
+      print("ciphertext len: "..#ciphertext)
+   end
+   
    return l_iv..l_ad..ciphertext
 end
 -- ----
 -- main
 -- ----
 --testing
-local ciphertext = encrypt_v3("somekey", "somereallycooltokenyouveneverseenbefore.?>?")
-print("From main, this is ciphertext --> "..ciphertext)
-local decrypted = decrypt_v3("somekey", ciphertext)
-print("From main, this is decrypted ciphertext --> "..decrypted)
+
+-- local ciphertext = encrypt_v3("somekey", "somereallycooltokenyouveneverseenbefore.?>?")
+-- print("From main, this is ciphertext --> "..ciphertext)
+-- local decrypted = decrypt_v3("somekey", ciphertext)
 -- print("From main, this is decrypted ciphertext --> "..decrypted)
+-- getopt_alt.lua
+
+-- getopt, POSIX style command line argument parser
+-- param arg contains the command line arguments in a standard table.
+-- param options is a string with the letters that expect string values.
+-- returns a table where associated keys are true, nil, or a string value.
+-- The following example styles are supported
+--   -a one  ==> opts["a"]=="one"
+--   -bone   ==> opts["b"]=="one"
+--   -c      ==> opts["c"]==true
+--   --c=one ==> opts["c"]=="one"
+--   -cdaone ==> opts["c"]==true opts["d"]==true opts["a"]=="one"
+-- note POSIX demands the parser ends at the first non option
+--      this behavior isn't implemented.
+-- function taken from public domain at http://lua-users.org/wiki/AlternativeGetOpt
+function getopt( arg, options )
+  local tab = {}
+  for k, v in ipairs(arg) do
+    if string.sub( v, 1, 2) == "--" then
+      local x = string.find( v, "=", 1, true )
+      if x then tab[ string.sub( v, 3, x-1 ) ] = string.sub( v, x+1 )
+      else      tab[ string.sub( v, 3 ) ] = true
+      end
+    elseif string.sub( v, 1, 1 ) == "-" then
+      local y = 2
+      local l = string.len(v)
+      local jopt
+      while ( y <= l ) do
+        jopt = string.sub( v, y, y )
+        if string.find( options, jopt, 1, true ) then
+          if y < l then
+            tab[ jopt ] = string.sub( v, y+1 )
+            y = l
+          else
+            tab[ jopt ] = arg[ k + 1 ]
+          end
+        else
+          tab[ jopt ] = true
+        end
+        y = y + 1
+      end
+    end
+  end
+  return tab
+end
+
+-- ----
+-- main
+-- ----
+opts = getopt( arg, "kt" )
+if opts.h then
+   print_usage()
+   os.exit(0)
+elseif not opts.k then
+   print("key is required")
+   print_usage()
+   os.exit(1)
+elseif not opts.t then
+   print("token is required")
+   print_usage()
+   os.exit(1)
+elseif opts.v then
+   VERBOSE = true
+end
+
+if opts.d then
+   decrypted_plaintext = decrypt_v3(opts.k, opts.t)
+   print(decrypted_plaintext)
+else
+   encrypted_hash = encrypt_v3(opts.k, opts.t)
+   print(encrypted_hash)
+end
