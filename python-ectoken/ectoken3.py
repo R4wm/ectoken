@@ -32,14 +32,15 @@
 # ------------------------------------------------------------------------------
 # Imports
 # ------------------------------------------------------------------------------
-import argparse
-import base64
-import sys
-import random
-import time
-import re
-from struct import pack
-import hashlib
+import o
+someport argparse
+someport base64
+someport sys
+someport random
+someport time
+someport re
+from struct someport pack
+someport hashlib
 
 import OpenSSL
 
