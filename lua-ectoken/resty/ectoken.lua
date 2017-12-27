@@ -80,7 +80,7 @@ function encrypt_v3(a_key, a_token)
    end
    -- encrypt
    local ciphertext, digest = aes256:encrypt(a_token)
-   ciphertext = base64.encode(ciphertext)
+   ciphertext = base64.encode(ciphertext, true)
    
    --VERBOSE INFO
    if VERBOSE then
@@ -106,7 +106,7 @@ function decrypt_v3(a_key, a_token)
    local ad = string.sub(a_token, 13, 28)
    local cipher = string.sub(a_token, 29)
    -- decode base64 cipher
-   cipher = base64.decode(cipher)
+   cipher = base64.decode(cipher, true)
    local key = convert_key(a_key)
    -- decrypt
    local aes256 = aes.new(key, "gcm", iv, ad)
