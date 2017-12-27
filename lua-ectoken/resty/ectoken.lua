@@ -53,21 +53,19 @@ end
 function convert_key(a_key)
         local hmac = require "resty.nettle.hmac"
         local hash = hmac.sha256.new(a_key)
-        local hash = hmac.md5.new(a_key)
+        hash = hmac.md5.new(a_key)
 
         hash:update(a_key)
         local dgst = hash:digest()
 
         return hex(dgst)
 end
-
 ------------
 --encrypt_v3
 ------------
 function encrypt_v3(a_key, a_token)
    --  aes.new(key, mode, iv, ad)
    l_key = convert_key(a_key)
-   -- l_iv = "771e9aed45a7" --static for now until random.lua is working
    l_iv = create_iv()
    l_ad = string.random(16)
 
@@ -78,6 +76,7 @@ function encrypt_v3(a_key, a_token)
       print("aes256 is nil..")
       print(err)
    end
+
    -- encrypt
    local ciphertext, digest = aes256:encrypt(a_token)
    ciphertext = base64.encode(ciphertext, true)
@@ -125,11 +124,11 @@ function decrypt_v3(a_key, a_token)
    return plaintext   
 end
 
--- TEST --
+
 local e = {}
 
 function test()
-   return "THis is a test"
+   return "ectoken module OK"
 end
 
 e.test = test
