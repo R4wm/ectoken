@@ -32,15 +32,14 @@
 # ------------------------------------------------------------------------------
 # Imports
 # ------------------------------------------------------------------------------
-import o
-someport argparse
-someport base64
-someport sys
-someport random
-someport time
-someport re
-from struct someport pack
-someport hashlib
+import argparse
+import base64
+import sys
+import random
+import time
+import re
+from struct import pack
+import hashlib
 
 import OpenSSL
 
@@ -86,10 +85,8 @@ def decrypt_v3(a_key, a_token, a_verbose = False):
     # Base 64 decode
     #l_decoded_token = base64.urlsafe_b64decode(a_token)
     l_decoded_token = url_safe_base64_decode(a_token)
-    print("This is l_decoded_token --> ", l_decoded_token)
 
     # Split first 12 bytes off and use as iv
-    print("l_decoded_token (which is the l_iv first 12 bytes")
     l_iv = l_decoded_token[:G_IV_SIZE_BYTES]
 
     # Split last 16 bytes off and use as tag
@@ -130,9 +127,6 @@ def decrypt_v3(a_key, a_token, a_verbose = False):
 def encrypt_v3(a_key, a_token, a_verbose = False):
 
     # Get sha-256 of key
-    print("hashlib.sha256(a_key) -> ",hashlib.sha256(a_key))
-    print("hashlib.sha256(a_key).hexdigest() -> ",hashlib.sha256(a_key).hexdigest())
-    print("hashlib.sha256(a_key).hexdigest().decode() -> ",hashlib.sha256(a_key).hexdigest().decode('hex'))
     l_key = hashlib.sha256(a_key).hexdigest().decode('hex')
 
     # Seed rand with time...
@@ -140,10 +134,6 @@ def encrypt_v3(a_key, a_token, a_verbose = False):
 
     # Generate iv
     l_iv = OpenSSL.rand.bytes(G_IV_SIZE_BYTES) # TODO Make constant...
-    print("l_iv --> ", l_iv)
-    print("l_iv.encode('hex') --> ", l_iv.encode('hex'))
-    print("G_IV_SIZE_BYTES --> ", G_IV_SIZE_BYTES)
-    print("len(l_iv.encode(hex) --> ", len(l_iv.encode('hex')))
 
     # Construct an AES-GCM Cipher object with the given key and a
     # randomly generated IV.
