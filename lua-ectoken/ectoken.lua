@@ -42,9 +42,9 @@ end
 -- ---------
 function create_iv()
    local random = require "resty.random"
-   local bytes = random.bytes(8)
+   local bytes = random.bytes(12)
    -- hash it for consistent length
-   return base64.encode(bytes)
+   return bytes
 end
 
 --------------
@@ -53,47 +53,99 @@ end
 function convert_key(a_key)
         local hmac = require "resty.nettle.hmac"
         local hash = hmac.sha256.new(a_key)
-        hash = hmac.md5.new(a_key)
+        -- hash = hmac.md5.new(a_key)
 
-        hash:update(a_key)
+        -- hash:update(a_key)
         local dgst = hash:digest()
 
         return hex(dgst)
 end
-------------
---encrypt_v3
-------------
+-- ------------
+-- --encrypt_v3
+-- ------------
+-- function encrypt_v3(a_key, a_token)
+--    --  aes.new(key, mode, iv, ad)
+--    l_key = convert_key(a_key)
+--    l_iv = create_iv() -- Done
+--    l_ad = string.random(16)
+
+--    local aes256, err = aes.new(l_key, "gcm", l_iv, l_ad)
+   
+--    -- check for error
+--    if aes256 == nil then
+--       print("aes256 is nil..")
+--       print(err)
+--    end
+
+--    -- encrypt
+--    local ciphertext, digest = aes256:encrypt(a_token)
+--    ciphertext = base64.encode(ciphertext, true)
+   
+--    --VERBOSE INFO
+--    if VERBOSE then
+--       print("l_key: "..l_key)
+--       print("l_iv: "..l_iv)
+--       print("l_ad: "..l_ad)
+--       print("digest: "..digest)
+--       print("ciphertext: "..ciphertext)
+--       print("ciphertext len: "..#ciphertext)
+--    end
+   
+--    -- return l_iv..l_ad..ciphertext
+--    -- return l_iv
+--    return l_key
+--    -- return hex(l_iv)
+-- end
+
 function encrypt_v3(a_key, a_token)
-   --  aes.new(key, mode, iv, ad)
-   l_key = convert_key(a_key)
-   l_iv = create_iv()
-   l_ad = string.random(16)
+   -- Make l_iv similar
+   local random = require "resty.random"
+   local l_iv = random.bytes(12)
+   -- return hex(l_iv)
+   -- looks like 7941E158720372272A7C527B
 
-   local aes256, err = aes.new(l_key, "gcm", l_iv, l_ad)
-   
-   -- check for error
-   if aes256 == nil then
-      print("aes256 is nil..")
-      print(err)
-   end
+   -- Make l_key similar
+   -- ('hex encoded l_key: ', '3fc9b689459d738f8c88a3a48aa9e33542016b7a4052e001aaa536fca74813cb')
+   local resty_sha256 = require "resty.sha256"
+   local str = require "resty.string"
+   local sha256 = resty_sha256:new()
+   ngx.say(sha256:update(a_key))
+   local l_key = sha256:final()
+   -- looks like l_key='3FC9B689459D738F8C88A3A48AA9E33542016B7A4052E001AAA536FCA74813CB'  len 64
+   -- return hex(l_key)
 
-   -- encrypt
+   -- Make l_tag similar,  TAG should look like l_tag='06f1adee161120e20a70438063084e23' len 32
+   -- Make your own tag since there is no such l_encryptor.tag to get from instantiated object
+   l_tag = random.bytes(16) --looks like haha='B5C54C68FEFB487922F397B500FCAA50'
+   -- return hex(l_tag)
+
+   --do the thing..
+   local aes256, err = aes.new(l_key, "gcm", l_iv, l_tag)
    local ciphertext, digest = aes256:encrypt(a_token)
-   ciphertext = base64.encode(ciphertext, true)
-   
-   --VERBOSE INFO
-   if VERBOSE then
-      print("l_key: "..l_key)
-      print("l_iv: "..l_iv)
-      print("l_ad: "..l_ad)
-      print("digest: "..digest)
-      print("ciphertext: "..ciphertext)
-      print("ciphertext len: "..#ciphertext)
-   end
-   
-   return l_iv..l_ad..ciphertext
-   -- return l_iv
+   --return ciphertext
+   -- local result = l_iv..ciphertext..l_tag
+   local result = l_iv..ciphertext..digest
 
+   -- base64 url safe if
+   l_result = base64.encode(result, true)
+   -- Gimme all the things
+   things = {}
+   things.l_iv = l_iv
+   things.l_key = l_key
+   things.l_tag = l_tag
+   things.url_safe_b64d_joining = l_result
+   things.digest = digest
+   things.binary_join = result
+   -- Hexed
+   things.hexed_l_iv = hex(l_iv)
+   things.hexed_l_key = hex(l_key)
+   things.hexed_l_tag = hex(l_tag)
+   things.url_safe_b64d_joining = l_result
+   things.hexed_digest = hex(digest)
+   things.binary_join = result
+   -- return base64.encode("thisisatestoftheemergencybroadcastsystem", true)
+   return things
+   
 end
 
 -- -------

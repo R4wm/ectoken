@@ -128,13 +128,17 @@ def encrypt_v3(a_key, a_token, a_verbose = False):
 
     # Get sha-256 of key
     l_key = hashlib.sha256(a_key).hexdigest().decode('hex')
-
+    print("l_key: ", l_key)
+    print("hex encoded l_key: ", l_key.encode('hex'))
+    
     # Seed rand with time...
     OpenSSL.rand.seed(str(time.time()))
 
     # Generate iv
     l_iv = OpenSSL.rand.bytes(G_IV_SIZE_BYTES) # TODO Make constant...
-
+    print("l_iv: ", l_iv)
+    ## DONE ##
+    
     # Construct an AES-GCM Cipher object with the given key and a
     # randomly generated IV.
     l_encryptor = Cipher(
@@ -160,7 +164,8 @@ def encrypt_v3(a_key, a_token, a_verbose = False):
         print('| l_encoded_token: %s'%(l_iv_ciphertext.encode('hex')))
         print('+-------------------------------------------------------------')
 
-    return url_safe_base64_encode(l_iv_ciphertext)
+    #return url_safe_base64_encode(l_iv_ciphertext)
+    return url_safe_base64_encode("thisisatestoftheemergencybroadcastsystem")
 
 # ------------------------------------------------------------------------------
 # main
